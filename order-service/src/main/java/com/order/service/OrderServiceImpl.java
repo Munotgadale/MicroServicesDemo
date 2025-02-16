@@ -1,5 +1,6 @@
 package com.order.service;
 
+import com.order.dto.InventoryResponse;
 import com.order.dto.OrderLineItemsDto;
 import com.order.dto.OrderRequest;
 import com.order.model.Order;
@@ -9,7 +10,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,7 +24,9 @@ public class OrderServiceImpl implements OrderService{
 
     public final OrderRepository orderRepository;
 
-    public void placeOrder(OrderRequest orderRequest){
+    public final WebClient webClient;
+
+    public String placeOrder(OrderRequest orderRequest){
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
 
@@ -32,11 +37,28 @@ public class OrderServiceImpl implements OrderService{
 
        order.setOrderLineItemsList(orderLineItemsList);
 
+       List<String> skuCodesList = order.getOrderLineItemsList().stream()
+               .map(OrderLineItems::getSkuCode)
+               .toList();
+
        //Call Inventory Service
+        InventoryResponse[] inventoryResponseArray = webClient.get()
+                .uri("http://localhost:8082/api/inventory/get-inventory",
+                        uriBuilder -> uriBuilder.queryParam("skuCode",skuCodesList).build())
+                        .retrieve()
+                                .bodyToMono(InventoryResponse[].class)
+                                        .block();
 
 
-       orderRepository.save(order);
-       log.info("Order Placed Successfully with Order Id: {}",order.getOrderId());
+        boolean allProductsInStock = Arrays.stream(inventoryResponseArray).allMatch(InventoryResponse::isInStock);
+        if(allProductsInStock) {
+            orderRepository.save(order);
+            log.info("Order Placed Successfully with Order Id: {}", order.getOrderId());
+            return "Order Placed Successfully with Order Id "+order.getOrderId();
+        }else{
+            log.info("Order Not Placed, Product Is Not in Stock Result: {}", false);
+            return "Order Not Placed, Product Is Not in Stock";
+        }
     }
 
     private OrderLineItems mapToDto(OrderLineItemsDto orderLineItemsDto) {

@@ -4,5 +4,5 @@ import com.order.dto.OrderRequest;
 
 public interface OrderService {
 
-    public void placeOrder(OrderRequest orderRequest);
+    public String placeOrder(OrderRequest orderRequest);
 }
