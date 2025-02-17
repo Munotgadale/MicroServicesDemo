@@ -24,7 +24,7 @@ public class OrderServiceImpl implements OrderService{
 
     public final OrderRepository orderRepository;
 
-    public final WebClient webClient;
+    public final WebClient.Builder webClientBuilder;
 
     public String placeOrder(OrderRequest orderRequest){
         Order order = new Order();
@@ -42,8 +42,8 @@ public class OrderServiceImpl implements OrderService{
                .toList();
 
        //Call Inventory Service
-        InventoryResponse[] inventoryResponseArray = webClient.get()
-                .uri("http://localhost:8082/api/inventory/get-inventory",
+        InventoryResponse[] inventoryResponseArray = webClientBuilder.build().get()
+                .uri("http://inventry/api/inventory/get-inventory",
                         uriBuilder -> uriBuilder.queryParam("skuCode",skuCodesList).build())
                         .retrieve()
                                 .bodyToMono(InventoryResponse[].class)
